@@ -1,4 +1,5 @@
 # HoYoLAB 像素畫產生器
+<img width="1187" height="767" alt="image" src="https://github.com/user-attachments/assets/7390da70-f4ac-41ba-b32d-ffe025801365" />
 
 網址：https://twl-benchen.github.io/hoyolab-pixel-art/
 
