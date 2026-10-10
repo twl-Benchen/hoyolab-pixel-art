@@ -16,12 +16,6 @@
 - 下載 1 到 32 倍放大的清晰 PNG
 - HoYoLAB 色塊模式：轉成一格一字的色塊文字，模擬手機 App 白縫預覽，一鍵複製貼上
 
-## 放上 GitHub Pages
-
-1. 在 GitHub 建一個新的 repo，例如 `hoyolab-pixel-art`
-2. 把 `index.html` 和 `README.md` 上傳到 repo 根目錄
-3. 到 repo 的 Settings > Pages，Source 選 `Deploy from a branch`，Branch 選 `main`，資料夾選 `/ (root)`，按 Save
-4. 等一兩分鐘，網址會是 `https://<你的帳號>.github.io/hoyolab-pixel-art/`
 
 ## HoYoLAB 模式
 
