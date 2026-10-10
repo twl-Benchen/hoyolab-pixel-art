@@ -10,23 +10,27 @@
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 /* 版面：頂部標題列 / 左側設定欄 + 右側畫布(窄螢幕時疊成一欄) */
+/* 配色取自 HoYoLAB：藍紫主色、淡灰藍底、白卡片、青綠成功色 */
 :root{
-  --bg:#f1efe9;        /* 畫紙 */
-  --surface:#fbfaf7;
-  --ink:#1d1b24;
-  --muted:#6b6776;
-  --line:#dcd8cf;
-  --accent:#3b4bd8;    /* 群青 */
+  --bg:#f5f6fb;
+  --surface:#ffffff;
+  --soft:#f1f4f9;
+  --ink:#1f2235;
+  --muted:#8c90a6;
+  --line:#ebedf3;
+  --accent:#687ff4;
+  --accent-soft:#eef0fe;
   --accent-ink:#ffffff;
-  --check-a:#e6e3dc; --check-b:#f6f4ef;
+  --ok:#00c3a0;
+  --check-a:#e9ecf4; --check-b:#f7f8fc;
   --display:"DotGothic16","Noto Sans TC",system-ui,sans-serif;
   --sans:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
   --mono:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#16151b;--surface:#1f1d26;--ink:#ecebf2;--muted:#9c98a8;--line:#33303d;
-    --accent:#8c98ff;--accent-ink:#16151b;--check-a:#2a2833;--check-b:#22202a;color-scheme:dark}
+  :root{--bg:#12141d;--surface:#1b1e2b;--soft:#232737;--ink:#e9ebf5;--muted:#8e93ab;--line:#2a2e40;
+    --accent:#8396ff;--accent-soft:#262b48;--accent-ink:#12141d;--ok:#2fd6b4;--check-a:#242838;--check-b:#1d2030;color-scheme:dark}
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -40,7 +44,7 @@ h1 span{color:var(--accent)}
 .tag{color:var(--muted);font-size:.9rem;margin:0}
 .layout{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:16px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 12px rgba(31,34,53,.04);padding:16px;display:grid;gap:16px;min-width:0}
 .side{position:sticky;top:12px}
 @media (max-width:820px){.side{position:static}}
 h2{font-size:.78rem;letter-spacing:.12em;color:var(--muted);margin:0;font-weight:500}
@@ -51,22 +55,22 @@ label{display:grid;gap:4px;font-size:.92rem}
 output{font-family:var(--mono);color:var(--accent);font-variant-numeric:tabular-nums}
 .hint{font-size:.8rem;color:var(--muted)}
 input[type=range]{width:100%;accent-color:var(--accent)}
-select{font:inherit;font-size:.9rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+select{font:inherit;font-size:.9rem;color:var(--ink);background:var(--soft);border:1px solid transparent;border-radius:10px;padding:7px 10px}
 .check{display:flex;align-items:center;gap:8px;font-size:.92rem}
 .check input{accent-color:var(--accent);width:16px;height:16px}
-button,.btn{font:inherit;font-size:.92rem;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--accent);
-  background:transparent;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button,.btn{font:inherit;font-size:.92rem;border-radius:999px;padding:8px 18px;cursor:pointer;border:1px solid transparent;
+  background:var(--accent-soft);color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 button.primary{background:var(--accent);color:var(--accent-ink)}
 button:hover{filter:brightness(1.08)}
 button:focus-visible,select:focus-visible,input:focus-visible,.drop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .row{display:flex;gap:8px;flex-wrap:wrap}
-.drop{border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;font-size:.9rem}
-.drop.over{border-color:var(--accent);color:var(--accent)}
+.drop{border:2px dashed var(--line);background:var(--soft);border-radius:12px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;font-size:.9rem}
+.drop.over{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .drop strong{color:var(--ink);font-weight:500}
 .stage{display:grid;gap:12px;min-width:0}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .stats{font-family:var(--mono);font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.canvasbox{overflow:auto;border-radius:6px;border:1px solid var(--line);max-height:76vh;
+.canvasbox{overflow:auto;border-radius:12px;border:1px solid var(--line);max-height:76vh;
   background-color:var(--check-b);
   background-image:linear-gradient(45deg,var(--check-a) 25%,transparent 25%,transparent 75%,var(--check-a) 75%),
     linear-gradient(45deg,var(--check-a) 25%,transparent 25%,transparent 75%,var(--check-a) 75%);
@@ -74,12 +78,13 @@ button:focus-visible,select:focus-visible,input:focus-visible,.drop:focus-visibl
 canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 #view{max-width:none}
 .palette{display:flex;flex-wrap:wrap;gap:6px}
-.chip{width:30px;height:30px;border-radius:4px;border:1px solid var(--line);cursor:pointer;padding:0}
-.toast{font-size:.85rem;color:var(--accent);min-height:1.3em}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
-.tabs button{border:none;border-radius:6px 6px 0 0;padding:8px 14px;color:var(--muted)}
-.tabs button[aria-selected=true]{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
-.phone{background:#ffffff;border-radius:14px;border:5px solid var(--line);padding:12px;overflow:auto;max-height:76vh;justify-self:start;max-width:100%}
+.chip{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);cursor:pointer;padding:0}
+.toast{font-size:.85rem;color:var(--ok);min-height:1.3em}
+.tabs{display:flex;gap:8px;border-bottom:1px solid var(--line)}
+.tabs button{border:none;background:transparent;border-radius:0;padding:8px 6px 12px;color:var(--muted);position:relative;font-size:1rem}
+.tabs button[aria-selected=true]{color:var(--ink);font-weight:700}
+.tabs button[aria-selected=true]::after{content:"";position:absolute;left:50%;bottom:2px;width:24px;height:4px;border-radius:2px;background:var(--accent);transform:translateX(-50%)}
+.phone{background:#ffffff;border-radius:12px;border:1px solid var(--line);padding:12px;overflow:auto;max-height:76vh;justify-self:start;max-width:100%}
 #hoyoOut{position:fixed;left:-9999px;top:0;background:#fff}
 footer{color:var(--muted);font-size:.8rem}
 @media (prefers-reduced-motion:no-preference){button{transition:filter .15s}}
