@@ -402,8 +402,9 @@ $("download").addEventListener("click",()=>{
 /* ---------- HoYoLAB 色塊 ---------- */
 // 電腦版實測：各字號一行最多幾格。ratio = 上下間距 / 一格寬，gap = 白縫佔上下間距的比例(電腦版編輯器實測)
 const MAXCOLS={12:66,14:57,18:44,22:36,24:33,32:24};
-const VIEW={ratio:1.55,gap:.35};
-const curPreset=()=>{const m=MAXCOLS[$("hPreset").value];return{cols:m,ratio:VIEW.ratio,gap:VIEW.gap,size:""};};
+// 各字號的上下壓扁倍數(電腦版實測)
+const RATIO={12:1.8,14:1.55,18:1.35,22:1.2,24:1.15,32:1.1};
+const curPreset=()=>{const v=$("hPreset").value;return{cols:MAXCOLS[v],ratio:RATIO[v],size:""};};
 function setPreset(){const p=curPreset();$("hc").max=p.cols;$("hc").value=p.cols-1;$("hr").value=p.ratio;drawHoyo();}
 // 填充文字：半形轉全形，讓每一格都是同樣寬度
 function fillChars(){
@@ -430,7 +431,7 @@ function drawHoyo(){
       if(col==="#ffffff")col="#fefefe"; // 純白會被編輯器清掉
       line.push(col);}
     hGrid.push(line);}
-  const cw=cols>40?8:cols>24?12:16,pitch=Math.round(cw*p.ratio),ch=Math.round(pitch*(1-p.gap));
+  const cw=cols>40?8:cols>24?12:16,pitch=Math.round(cw*ratio),ch=Math.min(pitch,Math.round(cw*1.05));
   const v=$("hView"),x=v.getContext("2d");v.width=cols*cw;v.height=rows*pitch;
   x.fillStyle="#ffffff";x.fillRect(0,0,v.width,v.height);
   hGrid.forEach((line,r)=>line.forEach((c,i)=>{x.fillStyle=c;x.fillRect(i*cw,r*pitch,cw,ch);}));
