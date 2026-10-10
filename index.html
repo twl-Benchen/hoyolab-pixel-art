@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HoYoLAB 像素畫產生器</title>
+<meta name="description" content="把自己的畫轉成像素風格：調整格數、減色、抖色，下載清晰放大的 PNG，或複製成 HoYoLAB 色塊文字。全部在瀏覽器本機處理。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 版面：頂部標題列 / 左側設定欄 + 右側畫布(窄螢幕時疊成一欄) */
+:root{
+  --bg:#f1efe9;        /* 畫紙 */
+  --surface:#fbfaf7;
+  --ink:#1d1b24;
+  --muted:#6b6776;
+  --line:#dcd8cf;
+  --accent:#3b4bd8;    /* 群青 */
+  --accent-ink:#ffffff;
+  --check-a:#e6e3dc; --check-b:#f6f4ef;
+  --display:"DotGothic16","Noto Sans TC",system-ui,sans-serif;
+  --sans:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#16151b;--surface:#1f1d26;--ink:#ecebf2;--muted:#9c98a8;--line:#33303d;
+    --accent:#8c98ff;--accent-ink:#16151b;--check-a:#2a2833;--check-b:#22202a;color-scheme:dark}
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 56px;display:grid;gap:20px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:2rem;letter-spacing:.04em;margin:0;line-height:1.2}
+h1 span{color:var(--accent)}
+.tag{color:var(--muted);font-size:.9rem;margin:0}
+.layout{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:16px;min-width:0}
+.side{position:sticky;top:12px}
+@media (max-width:820px){.side{position:static}}
+h2{font-size:.78rem;letter-spacing:.12em;color:var(--muted);margin:0;font-weight:500}
+.group{display:grid;gap:12px}
+.group+.group{border-top:1px solid var(--line);padding-top:14px}
+label{display:grid;gap:4px;font-size:.92rem}
+.lab{display:flex;justify-content:space-between;gap:8px}
+output{font-family:var(--mono);color:var(--accent);font-variant-numeric:tabular-nums}
+.hint{font-size:.8rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{font:inherit;font-size:.9rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.check{display:flex;align-items:center;gap:8px;font-size:.92rem}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+button,.btn{font:inherit;font-size:.92rem;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--accent);
+  background:transparent;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.primary{background:var(--accent);color:var(--accent-ink)}
+button:hover{filter:brightness(1.08)}
+button:focus-visible,select:focus-visible,input:focus-visible,.drop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;font-size:.9rem}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+.drop strong{color:var(--ink);font-weight:500}
+.stage{display:grid;gap:12px;min-width:0}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.stats{font-family:var(--mono);font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.canvasbox{overflow:auto;border-radius:6px;border:1px solid var(--line);max-height:76vh;
+  background-color:var(--check-b);
+  background-image:linear-gradient(45deg,var(--check-a) 25%,transparent 25%,transparent 75%,var(--check-a) 75%),
+    linear-gradient(45deg,var(--check-a) 25%,transparent 25%,transparent 75%,var(--check-a) 75%);
+  background-size:16px 16px;background-position:0 0,8px 8px;display:grid;place-items:center;padding:12px;min-height:260px}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+#view{max-width:none}
+.palette{display:flex;flex-wrap:wrap;gap:6px}
+.chip{width:30px;height:30px;border-radius:4px;border:1px solid var(--line);cursor:pointer;padding:0}
+.toast{font-size:.85rem;color:var(--accent);min-height:1.3em}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{border:none;border-radius:6px 6px 0 0;padding:8px 14px;color:var(--muted)}
+.tabs button[aria-selected=true]{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.phone{background:#ffffff;border-radius:14px;border:5px solid var(--line);padding:12px;overflow:auto;max-height:76vh;justify-self:start;max-width:100%}
+#hoyoOut{position:fixed;left:-9999px;top:0;background:#fff}
+footer{color:var(--muted);font-size:.8rem}
+@media (prefers-reduced-motion:no-preference){button{transition:filter .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>HoYoLAB <span>像素畫</span>產生器</h1>
+    <p class="tag">把你的畫變成像素風格。圖片只在你的瀏覽器裡處理，不會上傳。</p>
+  </header>
+
+  <div class="layout">
+    <aside class="panel side">
+      <div class="group">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="選擇圖片">
+          <strong>點這裡選圖</strong>，或把圖拖進來<br>也可以直接 Ctrl+V 貼上
+        </div>
+        <input type="file" id="file" accept="image/*" hidden>
+      </div>
+
+      <div class="group">
+        <h2>格子</h2>
+        <label><span class="lab">寬度(格) <output id="wV"></output></span>
+          <input type="range" id="w" min="8" max="256" step="1" value="64">
+          <span class="hint">高度會依原圖比例自動算。</span>
+        </label>
+        <label>縮小時取色
+          <select id="sample">
+            <option value="avg">平均(一般插畫)</option>
+            <option value="mode">取最多的顏色(線條比較乾淨)</option>
+            <option value="near">取中心點(最銳利)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="group">
+        <h2>顏色</h2>
+        <label><span class="lab">顏色數量 <output id="kV"></output></span>
+          <input type="range" id="k" min="0" max="64" step="1" value="16">
+          <span class="hint">0 表示不減色。像素風通常 8 到 24 色最好看。</span>
+        </label>
+        <label class="check"><input type="checkbox" id="dither">抖色(用點點混出漸層)</label>
+        <label><span class="lab">飽和度 <output id="satV"></output></span>
+          <input type="range" id="sat" min="0.5" max="1.8" step="0.05" value="1.1">
+        </label>
+        <label><span class="lab">透明門檻 <output id="aV"></output></span>
+          <input type="range" id="alpha" min="0" max="255" step="1" value="128">
+          <span class="hint">去背的圖用得到：比這個淡的邊緣會變透明。</span>
+        </label>
+      </div>
+
+      <div class="group">
+        <h2>色盤</h2>
+        <div class="palette" id="palette"></div>
+        <span class="hint">點色塊複製色碼。</span>
+      </div>
+    </aside>
+
+    <section class="panel stage">
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tabImg" aria-selected="true">像素圖</button>
+        <button role="tab" id="tabHoyo" aria-selected="false">HoYoLAB 色塊</button>
+      </div>
+
+      <div id="paneImg" class="stage">
+        <div class="bar">
+          <div class="stats" id="stats">還沒選圖</div>
+          <div class="row">
+            <label class="check"><input type="checkbox" id="grid">格線</label>
+            <button id="hold" title="按住看原圖">按住看原圖</button>
+          </div>
+        </div>
+        <div class="canvasbox"><canvas id="view" width="1" height="1"></canvas></div>
+        <div class="bar">
+          <label style="grid-auto-flow:column;align-items:center;gap:8px">下載放大倍數
+            <select id="scale">
+              <option value="1">1 倍(原始格數)</option>
+              <option value="4">4 倍</option>
+              <option value="8" selected>8 倍</option>
+              <option value="16">16 倍</option>
+              <option value="32">32 倍</option>
+            </select>
+          </label>
+          <button class="primary" id="download">下載 PNG</button>
+        </div>
+        <div class="toast" id="toastImg"></div>
+      </div>
+
+      <div id="paneHoyo" class="stage" hidden>
+        <p class="hint" style="margin:0">轉成一格一個字的色塊文字，貼進 HoYoLAB 電腦版編輯器。以電腦版顯示為準，行與行之間的白縫已經模擬進預覽。</p>
+        <div class="row">
+          <label>字號
+            <select id="hPreset">
+              <option value="12">12px(一行最多 66 格)</option>
+              <option value="14" selected>14px 預設(一行最多 57 格)</option>
+              <option value="18">18px(一行最多 44 格)</option>
+              <option value="22">22px(一行最多 36 格)</option>
+              <option value="24">24px(一行最多 33 格)</option>
+              <option value="32">32px(一行最多 24 格)</option>
+            </select>
+          </label>
+          <label style="min-width:180px;flex:1"><span class="lab">寬度(格) <output id="hcV"></output></span>
+            <input type="range" id="hc" min="6" max="66" step="1">
+          </label>
+          <label style="min-width:180px;flex:1"><span class="lab">上下壓扁 <output id="hrV"></output></span>
+            <input type="range" id="hr" min="1" max="2.5" step="0.05">
+          </label>
+        </div>
+        <div class="stats" id="hStats"></div>
+        <div class="phone"><canvas id="hView" width="1" height="1"></canvas></div>
+        <div class="row"><button class="primary" id="hCopy">複製色塊</button></div>
+        <div class="toast" id="toastHoyo"></div>
+        <p class="hint" style="margin:0">步驟：在編輯器按 Enter 換新行，貼上，全選剛貼上的色塊，用工具列的字號改成上面選的大小。有折行就把寬度調小一格。</p>
+      </div>
+    </section>
+  </div>
+
+  <footer>HoYoLAB 像素畫產生器．所有處理都在本機完成．<a href="https://github.com/twl-Benchen/hoyolab-pixel-art" style="color:inherit">GitHub</a></footer>
+</div>
+<div id="hoyoOut"></div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const MAX_SRC=1024;
+let src=null;      // {w,h,data} 原圖(最長邊縮到 1024 內)
+let srcURL=null;   // 原圖網址，用於「看原圖」
+let result=null;   // {w,h,data:Uint8ClampedArray RGBA}
+let palette=[];
+
+/* ---------- 讀圖 ---------- */
+function loadURL(url){
+  const im=new Image();
+  im.onload=()=>{
+    let w=im.naturalWidth,h=im.naturalHeight;
+    const s=Math.min(1,MAX_SRC/Math.max(w,h));
+    w=Math.max(1,Math.round(w*s));h=Math.max(1,Math.round(h*s));
+    const c=document.createElement("canvas");c.width=w;c.height=h;
+    const x=c.getContext("2d");x.drawImage(im,0,0,w,h);
+    src={w,h,data:x.getImageData(0,0,w,h).data};srcURL=url;
+    // 小圖(本來就是像素畫)預設用原寬、取最多顏色
+    if(im.naturalWidth<=256){$("w").value=im.naturalWidth;$("sample").value="mode";}
+    run();
+  };
+  im.onerror=()=>toast("toastImg","這個檔案讀不出來，換一張 PNG 或 JPG 試試");
+  im.src=url;
+}
+function loadFile(f){if(!f||!f.type.startsWith("image/"))return;const r=new FileReader();r.onload=()=>loadURL(r.result);r.readAsDataURL(f);}
+$("drop").addEventListener("click",()=>$("file").click());
+$("drop").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("file").click();}});
+$("file").addEventListener("change",e=>loadFile(e.target.files[0]));
+["dragenter","dragover"].forEach(t=>$("drop").addEventListener(t,e=>{e.preventDefault();$("drop").classList.add("over");}));
+["dragleave","drop"].forEach(t=>$("drop").addEventListener(t,e=>{e.preventDefault();$("drop").classList.remove("over");}));
+$("drop").addEventListener("drop",e=>loadFile(e.dataTransfer.files[0]));
+window.addEventListener("paste",e=>{for(const it of e.clipboardData.items){if(it.type.startsWith("image/")){loadFile(it.getAsFile());break;}}});
+
+/* ---------- 縮小取樣 ---------- */
+function downsample(W,H,mode,aTh){
+  const out=new Uint8ClampedArray(W*H*4),d=src.data,sw=src.w,sh=src.h;
+  for(let r=0;r<H;r++){
+    const y0=Math.floor(r*sh/H),y1=Math.max(y0+1,Math.floor((r+1)*sh/H));
+    for(let c=0;c<W;c++){
+      const x0=Math.floor(c*sw/W),x1=Math.max(x0+1,Math.floor((c+1)*sw/W));
+      const o=(r*W+c)*4;
+      if(mode==="near"){
+        const i=(((y0+y1)>>1)*sw+((x0+x1)>>1))*4;
+        out[o]=d[i];out[o+1]=d[i+1];out[o+2]=d[i+2];out[o+3]=d[i+3]>=aTh?255:0;continue;
+      }
+      let R=0,G=0,B=0,A=0,n=0;const cnt=new Map();
+      for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+        const i=(y*sw+x)*4,a=d[i+3];n++;A+=a;
+        if(mode==="avg"){R+=d[i]*a;G+=d[i+1]*a;B+=d[i+2]*a;}
+        else if(a>=aTh){const k=((d[i]>>3)<<10)|((d[i+1]>>3)<<5)|(d[i+2]>>3);
+          const e=cnt.get(k);if(e){e[0]++;e[1]+=d[i];e[2]+=d[i+1];e[3]+=d[i+2];}else cnt.set(k,[1,d[i],d[i+1],d[i+2]]);}
+      }
+      const alpha=A/n;
+      if(alpha<aTh){out[o+3]=0;continue;}
+      if(mode==="avg"){out[o]=R/A;out[o+1]=G/A;out[o+2]=B/A;}
+      else{let best=null;cnt.forEach(v=>{if(!best||v[0]>best[0])best=v;});
+        if(!best){out[o+3]=0;continue;}
+        out[o]=best[1]/best[0];out[o+1]=best[2]/best[0];out[o+2]=best[3]/best[0];}
+      out[o+3]=255;
+    }
+  }
+  return out;
+}
+
+/* ---------- 飽和度 ---------- */
+function saturate(px,s){
+  if(Math.abs(s-1)<1e-3)return;
+  for(let i=0;i<px.length;i+=4){if(!px[i+3])continue;
+    const r=px[i],g=px[i+1],b=px[i+2],l=0.299*r+0.587*g+0.114*b;
+    px[i]=l+(r-l)*s;px[i+1]=l+(g-l)*s;px[i+2]=l+(b-l)*s;}
+}
+
+/* ---------- 減色：k-means++ ---------- */
+function kmeans(px,k){
+  const pts=[];for(let i=0;i<px.length;i+=4)if(px[i+3])pts.push([px[i],px[i+1],px[i+2]]);
+  if(!pts.length)return[];
+  // 取樣加速
+  const step=Math.max(1,Math.floor(pts.length/6000)),S=[];for(let i=0;i<pts.length;i+=step)S.push(pts[i]);
+  // 先算不重複的顏色，比 k 少就直接用
+  const uniq=new Map();for(const p of pts){const key=p.join(",");if(!uniq.has(key))uniq.set(key,p);if(uniq.size>k)break;}
+  if(uniq.size<=k)return[...uniq.values()];
+  const d2=(a,b)=>(a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2;
+  let seed=12345;const rnd=()=>((seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff);
+  const C=[S[Math.floor(rnd()*S.length)].slice()];
+  const D=S.map(p=>d2(p,C[0]));
+  while(C.length<k){let sum=0;for(const v of D)sum+=v;let t=rnd()*sum,j=0;
+    for(;j<S.length-1;j++){t-=D[j];if(t<=0)break;}
+    C.push(S[j].slice());for(let i=0;i<S.length;i++)D[i]=Math.min(D[i],d2(S[i],C[C.length-1]));}
+  for(let it=0;it<14;it++){
+    const acc=C.map(()=>[0,0,0,0]);
+    for(const p of S){let bi=0,bd=Infinity;for(let j=0;j<C.length;j++){const v=d2(p,C[j]);if(v<bd){bd=v;bi=j;}}
+      const a=acc[bi];a[0]+=p[0];a[1]+=p[1];a[2]+=p[2];a[3]++;}
+    let moved=0;
+    for(let j=0;j<C.length;j++){const a=acc[j];if(!a[3])continue;
+      const n=[a[0]/a[3],a[1]/a[3],a[2]/a[3]];moved+=d2(n,C[j]);C[j]=n;}
+    if(moved<1)break;
+  }
+  return C.map(c=>c.map(Math.round));
+}
+function nearest(pal,r,g,b){let bi=0,bd=Infinity;
+  for(let j=0;j<pal.length;j++){const p=pal[j];const v=(p[0]-r)**2*0.3+(p[1]-g)**2*0.59+(p[2]-b)**2*0.11;if(v<bd){bd=v;bi=j;}}return pal[bi];}
+function mapPalette(px,W,H,pal,dither){
+  if(!dither){for(let i=0;i<px.length;i+=4){if(!px[i+3])continue;const p=nearest(pal,px[i],px[i+1],px[i+2]);px[i]=p[0];px[i+1]=p[1];px[i+2]=p[2];}return;}
+  const f=new Float32Array(W*H*3);for(let i=0,j=0;i<px.length;i+=4,j+=3){f[j]=px[i];f[j+1]=px[i+1];f[j+2]=px[i+2];}
+  const add=(x,y,e,w)=>{if(x<0||x>=W||y>=H)return;const q=y*W+x;if(!px[q*4+3])return;const j=q*3;f[j]+=e[0]*w;f[j+1]+=e[1]*w;f[j+2]+=e[2]*w;};
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const q=y*W+x,i=q*4,j=q*3;if(!px[i+3])continue;
+    const p=nearest(pal,f[j],f[j+1],f[j+2]);const e=[f[j]-p[0],f[j+1]-p[1],f[j+2]-p[2]];
+    px[i]=p[0];px[i+1]=p[1];px[i+2]=p[2];
+    add(x+1,y,e,7/16);add(x-1,y+1,e,3/16);add(x,y+1,e,5/16);add(x+1,y+1,e,1/16);}
+}
+
+/* ---------- 主流程 ---------- */
+let timer=0;
+function run(){clearTimeout(timer);timer=setTimeout(process,40);}
+function process(){
+  $("wV").textContent=$("w").value;$("kV").textContent=+$("k").value?$("k").value:"不減色";
+  $("satV").textContent=(+$("sat").value).toFixed(2)+"×";$("aV").textContent=$("alpha").value;
+  if(!src)return;
+  const W=Math.min(+$("w").value,src.w),H=Math.max(1,Math.round(src.h*W/src.w));
+  const px=downsample(W,H,$("sample").value,+$("alpha").value);
+  saturate(px,+$("sat").value);
+  const k=+$("k").value;
+  if(k>0){palette=kmeans(px,k);mapPalette(px,W,H,palette,$("dither").checked);}
+  else{const m=new Map();for(let i=0;i<px.length;i+=4)if(px[i+3]){const key=(px[i]<<16)|(px[i+1]<<8)|px[i+2];m.set(key,(m.get(key)||0)+1);}
+    palette=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,64).map(([key])=>[key>>16,(key>>8)&255,key&255]);}
+  result={w:W,h:H,data:px};
+  drawView();drawPalette();drawHoyo();
+  const count=new Set();for(let i=0;i<px.length;i+=4)if(px[i+3])count.add((px[i]<<16)|(px[i+1]<<8)|px[i+2]);
+  $("stats").textContent=`${W} × ${H} 格．${count.size} 種顏色`;
+}
+
+function smallCanvas(){const c=document.createElement("canvas");c.width=result.w;c.height=result.h;
+  c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(result.data),result.w,result.h),0,0);return c;}
+
+function drawView(showOriginal){
+  const box=$("view").parentElement,avail=Math.max(200,box.clientWidth-24);
+  const s=Math.max(1,Math.floor(Math.min(avail/result.w,640/result.h*1.6)));
+  const v=$("view"),x=v.getContext("2d");v.width=result.w*s;v.height=result.h*s;
+  x.imageSmoothingEnabled=!!showOriginal;x.clearRect(0,0,v.width,v.height);
+  if(showOriginal&&origImg){x.drawImage(origImg,0,0,v.width,v.height);return;}
+  x.drawImage(smallCanvas(),0,0,v.width,v.height);
+  if($("grid").checked&&s>=5){x.strokeStyle="rgba(0,0,0,.18)";x.lineWidth=1;x.beginPath();
+    for(let i=0;i<=result.w;i++){x.moveTo(i*s+.5,0);x.lineTo(i*s+.5,v.height);}
+    for(let j=0;j<=result.h;j++){x.moveTo(0,j*s+.5);x.lineTo(v.width,j*s+.5);}x.stroke();}
+}
+let origImg=null;
+function holdOn(){if(!srcURL||!result)return;if(!origImg||origImg.src!==srcURL){origImg=new Image();origImg.onload=()=>drawView(true);origImg.src=srcURL;}else drawView(true);}
+function holdOff(){if(result)drawView(false);}
+["mousedown","touchstart"].forEach(t=>$("hold").addEventListener(t,e=>{e.preventDefault();holdOn();}));
+["mouseup","mouseleave","touchend","touchcancel"].forEach(t=>$("hold").addEventListener(t,holdOff));
+
+const hex=p=>"#"+p.map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
+function drawPalette(){
+  const el=$("palette");el.innerHTML="";
+  palette.forEach(p=>{const b=document.createElement("button");b.className="chip";b.style.background=hex(p);
+    b.title=hex(p);b.setAttribute("aria-label","複製色碼 "+hex(p));
+    b.addEventListener("click",()=>copyText(hex(p),"toastImg","已複製 "+hex(p)));el.appendChild(b);});
+}
+
+/* ---------- 下載 ---------- */
+$("download").addEventListener("click",()=>{
+  if(!result){toast("toastImg","先選一張圖");return;}
+  const s=+$("scale").value,c=document.createElement("canvas");c.width=result.w*s;c.height=result.h*s;
+  const x=c.getContext("2d");x.imageSmoothingEnabled=false;x.drawImage(smallCanvas(),0,0,c.width,c.height);
+  c.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);
+    a.download=`pixel_${result.w}x${result.h}_x${s}.png`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast("toastImg",`已下載 ${c.width} × ${c.height} 的 PNG`);},"image/png");
+});
+
+/* ---------- HoYoLAB 色塊 ---------- */
+// 電腦版實測：各字號一行最多幾格。ratio = 上下間距 / 一格寬，gap = 白縫佔上下間距的比例(電腦版編輯器實測)
+const MAXCOLS={12:66,14:57,18:44,22:36,24:33,32:24};
+const VIEW={ratio:1.55,gap:.35};
+const curPreset=()=>{const m=MAXCOLS[$("hPreset").value];return{cols:m,ratio:VIEW.ratio,gap:VIEW.gap,size:""};};
+function setPreset(){const p=curPreset();$("hc").max=p.cols;$("hc").value=p.cols-1;$("hr").value=p.ratio;drawHoyo();}
+let hGrid=null;
+function drawHoyo(){
+  const p=curPreset(),cols=+$("hc").value,ratio=+$("hr").value;
+  $("hcV").textContent=cols;$("hrV").textContent=ratio.toFixed(2)+"×";
+  if(!result)return;
+  const rows=Math.max(1,Math.round(src.h*(cols/src.w)/ratio));
+  // 直接從原圖取樣到 HoYoLAB 的格數，再套用同一組色盤，避免放大像素圖造成重複格
+  const d=downsample(cols,rows,$("sample").value,+$("alpha").value);
+  saturate(d,+$("sat").value);
+  if(+$("k").value>0&&palette.length)mapPalette(d,cols,rows,palette,$("dither").checked);
+  hGrid=[];
+  for(let r=0;r<rows;r++){const line=[];
+    for(let c=0;c<cols;c++){const i=(r*cols+c)*4;
+      let col=d[i+3]?hex([d[i],d[i+1],d[i+2]]):"#fefefe";
+      if(col==="#ffffff")col="#fefefe"; // 純白會被編輯器清掉
+      line.push(col);}
+    hGrid.push(line);}
+  const cw=cols>40?8:cols>24?12:16,pitch=Math.round(cw*p.ratio),ch=Math.round(pitch*(1-p.gap));
+  const v=$("hView"),x=v.getContext("2d");v.width=cols*cw;v.height=rows*pitch;
+  x.fillStyle="#ffffff";x.fillRect(0,0,v.width,v.height);
+  hGrid.forEach((line,r)=>line.forEach((c,i)=>{x.fillStyle=c;x.fillRect(i*cw,r*pitch,cw,ch);}));
+  const warn=cols>=p.cols?`．⚠ 已到一行 ${p.cols} 格的上限，視窗寬度不同時可能折行`:"";
+  $("hStats").textContent=`${cols} × ${rows} 格．${new Set(hGrid.flat()).size} 種顏色${warn}`;
+  const cls=p.size?` class="${p.size}"`:"";
+  $("hoyoOut").innerHTML=hGrid.map(line=>{let h="",i=0;
+    while(i<line.length){let j=i;while(j<line.length&&line[j]===line[i])j++;
+      h+=`<span${cls} style="background-color:${line[i]};color:${line[i]}">${"測".repeat(j-i)}</span>`;i=j;}
+    return `<p>${h}</p>`;}).join("");
+}
+$("hPreset").addEventListener("change",setPreset);
+["hc","hr"].forEach(id=>$(id).addEventListener("input",drawHoyo));
+$("hCopy").addEventListener("click",async()=>{
+  if(!result){toast("toastHoyo","先選一張圖");return;}
+  const el=$("hoyoOut");
+  try{await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([el.innerHTML],{type:"text/html"}),"text/plain":new Blob([el.innerText],{type:"text/plain"})})]);
+    toast("toastHoyo","已複製，到 HoYoLAB 編輯器按 Ctrl+V");}
+  catch(e){el.style.left="0";const rg=document.createRange();rg.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(rg);
+    toast("toastHoyo","已幫你選取，請按 Ctrl+C");setTimeout(()=>{el.style.left="-9999px";},4000);}
+});
+
+/* ---------- 分頁、小工具 ---------- */
+function tab(which){const img=which==="img";$("paneImg").hidden=!img;$("paneHoyo").hidden=img;
+  $("tabImg").setAttribute("aria-selected",img);$("tabHoyo").setAttribute("aria-selected",!img);}
+$("tabImg").addEventListener("click",()=>tab("img"));$("tabHoyo").addEventListener("click",()=>tab("hoyo"));
+function toast(id,msg){$(id).textContent=msg;clearTimeout(toast[id]);toast[id]=setTimeout(()=>{$(id).textContent="";},3500);}
+async function copyText(t,id,msg){try{await navigator.clipboard.writeText(t);toast(id,msg);}catch(e){toast(id,t);}}
+
+["w","k","sat","alpha"].forEach(id=>$(id).addEventListener("input",run));
+["sample","dither"].forEach(id=>$(id).addEventListener("change",run));
+$("grid").addEventListener("change",()=>result&&drawView());
+window.addEventListener("resize",()=>result&&drawView());
+
+setPreset();process();
+// 內建一張小範例，打開就看得到效果
+(function demo(){
+  const c=document.createElement("canvas");c.width=320;c.height=320;const x=c.getContext("2d");
+  const g=x.createLinearGradient(0,0,0,320);g.addColorStop(0,"#ffd6a5");g.addColorStop(1,"#a0c4ff");x.fillStyle=g;x.fillRect(0,0,320,320);
+  x.fillStyle="#fff3c4";x.beginPath();x.arc(230,90,44,0,Math.PI*2);x.fill();
+  x.fillStyle="#5a8f4e";x.beginPath();x.moveTo(0,250);x.quadraticCurveTo(90,170,180,240);x.quadraticCurveTo(250,200,320,235);x.lineTo(320,320);x.lineTo(0,320);x.fill();
+  x.fillStyle="#3d6b3a";x.beginPath();x.moveTo(0,285);x.quadraticCurveTo(140,235,320,290);x.lineTo(320,320);x.lineTo(0,320);x.fill();
+  x.fillStyle="#7a4b2a";x.fillRect(70,190,12,50);x.fillStyle="#2f7a46";x.beginPath();x.arc(76,180,30,0,Math.PI*2);x.fill();
+  $("w").value=48;loadURL(c.toDataURL());
+})();
+</script>
+</body>
+</html>
