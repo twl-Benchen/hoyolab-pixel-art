@@ -452,6 +452,8 @@ $("grid").addEventListener("change",()=>result&&drawView());
 window.addEventListener("resize",()=>result&&drawView());
 
 setPreset();process();
+// 開啟時載入範例圖片(assets/star.png)；直接雙擊本機檔案開啟時瀏覽器不允許讀取，會維持空白提示
+loadURL("assets/star.png");
 
 </script>
 </body>
