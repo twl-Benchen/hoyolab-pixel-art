@@ -37,6 +37,13 @@ body{background:radial-gradient(1200px 600px at 50% -10%,#2b3142 0%,transparent 
 .wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 56px;display:grid;gap:20px}
 header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
 h1{font-family:var(--display);font-weight:400;font-size:2rem;letter-spacing:.04em;margin:0;line-height:1.2}
+.title{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.author{display:inline-flex;align-items:center;gap:8px;padding:4px 14px 4px 4px;border-radius:999px;background:var(--soft);
+  border:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:.92rem}
+.author img{width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid var(--accent);background:var(--surface)}
+.author:hover{border-color:var(--accent);color:var(--gold-light)}
+.author:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.empty{margin:0;color:var(--muted);font-size:.92rem;text-align:center;padding:40px 16px}
 h1{color:var(--accent)}
 h1 span{color:var(--gold-light)}
 .tag{color:var(--muted);font-size:.9rem;margin:0}
@@ -92,7 +99,13 @@ footer{color:var(--muted);font-size:.8rem}
 <body>
 <div class="wrap">
   <header>
-    <h1>HoYoLAB <span>像素畫</span>產生器</h1>
+    <div class="title">
+      <h1>HoYoLAB <span>像素畫</span>產生器</h1>
+      <a class="author" href="https://www.hoyolab.com/accountCenter/postList?id=25194528" target="_blank" rel="noopener">
+        <img src="https://hyl-static-res-prod.hoyolab.com/communityWeb/upload/59cb768b56ebc0143d6d2e37385c934c.png?x-oss-process=image%2Fformat%2Cwebp" alt="" width="32" height="32" onerror="this.hidden=true">
+        <span>Benchen</span>
+      </a>
+    </div>
     <p class="tag">把你的畫變成像素風格。圖片只在你的瀏覽器裡處理，不會上傳。</p>
   </header>
 
@@ -157,7 +170,7 @@ footer{color:var(--muted);font-size:.8rem}
             <button id="hold" title="按住看原圖">按住看原圖</button>
           </div>
         </div>
-        <div class="canvasbox"><canvas id="view" width="1" height="1"></canvas></div>
+        <div class="canvasbox"><p class="empty" data-empty>從左邊選一張圖，這裡會出現像素圖。</p><canvas id="view" width="1" height="1" hidden></canvas></div>
         <div class="bar">
           <label style="grid-auto-flow:column;align-items:center;gap:8px">下載放大倍數
             <select id="scale">
@@ -194,7 +207,7 @@ footer{color:var(--muted);font-size:.8rem}
           </label>
         </div>
         <div class="stats" id="hStats"></div>
-        <div class="phone"><canvas id="hView" width="1" height="1"></canvas></div>
+        <div class="phone"><p class="empty" data-empty style="color:#8c90a6">從左邊選一張圖，這裡會預覽貼到 HoYoLAB 的樣子。</p><canvas id="hView" width="1" height="1" hidden></canvas></div>
         <div class="row"><button class="primary" id="hCopy">複製色塊</button></div>
         <div class="toast" id="toastHoyo"></div>
         <p class="hint" style="margin:0">步驟：在編輯器按 Enter 換新行，貼上，全選剛貼上的色塊，用工具列的字號改成上面選的大小。有折行就把寬度調小一格。</p>
@@ -224,7 +237,8 @@ function loadURL(url){
     w=Math.max(1,Math.round(w*s));h=Math.max(1,Math.round(h*s));
     const c=document.createElement("canvas");c.width=w;c.height=h;
     const x=c.getContext("2d");x.drawImage(im,0,0,w,h);
-    src={w,h,data:x.getImageData(0,0,w,h).data};srcURL=url;
+    try{src={w,h,data:x.getImageData(0,0,w,h).data};}catch(err){toast("toastImg","這張圖讀不到像素資料，請改用選圖或拖曳");return;}
+    srcURL=url;
     // 小圖(本來就是像素畫)預設用原寬、取最多顏色
     if(im.naturalWidth<=256){$("w").value=im.naturalWidth;$("sample").value="mode";}
     run();
@@ -335,6 +349,7 @@ function process(){
   else{const m=new Map();for(let i=0;i<px.length;i+=4)if(px[i+3]){const key=(px[i]<<16)|(px[i+1]<<8)|px[i+2];m.set(key,(m.get(key)||0)+1);}
     palette=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,64).map(([key])=>[key>>16,(key>>8)&255,key&255]);}
   result={w:W,h:H,data:px};
+  document.querySelectorAll("[data-empty]").forEach(e=>e.hidden=true);$("view").hidden=false;$("hView").hidden=false;
   drawView();drawPalette();drawHoyo();
   const count=new Set();for(let i=0;i<px.length;i+=4)if(px[i+3])count.add((px[i]<<16)|(px[i+1]<<8)|px[i+2]);
   $("stats").textContent=`${W} × ${H} 格．${count.size} 種顏色`;
@@ -437,16 +452,7 @@ $("grid").addEventListener("change",()=>result&&drawView());
 window.addEventListener("resize",()=>result&&drawView());
 
 setPreset();process();
-// 內建一張小範例，打開就看得到效果
-(function demo(){
-  const c=document.createElement("canvas");c.width=320;c.height=320;const x=c.getContext("2d");
-  const g=x.createLinearGradient(0,0,0,320);g.addColorStop(0,"#ffd6a5");g.addColorStop(1,"#a0c4ff");x.fillStyle=g;x.fillRect(0,0,320,320);
-  x.fillStyle="#fff3c4";x.beginPath();x.arc(230,90,44,0,Math.PI*2);x.fill();
-  x.fillStyle="#5a8f4e";x.beginPath();x.moveTo(0,250);x.quadraticCurveTo(90,170,180,240);x.quadraticCurveTo(250,200,320,235);x.lineTo(320,320);x.lineTo(0,320);x.fill();
-  x.fillStyle="#3d6b3a";x.beginPath();x.moveTo(0,285);x.quadraticCurveTo(140,235,320,290);x.lineTo(320,320);x.lineTo(0,320);x.fill();
-  x.fillStyle="#7a4b2a";x.fillRect(70,190,12,50);x.fillStyle="#2f7a46";x.beginPath();x.arc(76,180,30,0,Math.PI*2);x.fill();
-  $("w").value=48;loadURL(c.toDataURL());
-})();
+
 </script>
 </body>
 </html>
